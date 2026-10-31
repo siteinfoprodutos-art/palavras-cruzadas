@@ -121,9 +121,6 @@ export default function App() {
     adRequest,
   ]);
 
-  // Track last used words per theme to prevent immediate repetition
-  const [lastUsedWordsByTheme, setLastUsedWordsByTheme] = useState<Record<string, string[]>>({});
-
   // Save Player Data helper
   const updatePlayerData = useCallback((updater: (prev: PlayerData) => PlayerData) => {
     setPlayerData((prev) => {
@@ -133,9 +130,85 @@ export default function App() {
     });
   }, []);
 
+  // Auto-save in-progress game state whenever grid, placements, timer or hints change while playing
+  useEffect(() => {
+    if (currentView === 'playing' && grid.length > 0 && placements.length > 0) {
+      const allFound = placements.every((p) => p.found);
+      if (!allFound) {
+        updatePlayerData((prev) => {
+          const existing = prev.levelProgress[currentLevelId] || {
+            levelId: currentLevelId,
+            completed: false,
+            stars: 0,
+          };
+          return {
+            ...prev,
+            levelProgress: {
+              ...prev.levelProgress,
+              [currentLevelId]: {
+                ...existing,
+                inProgress: {
+                  grid,
+                  placements,
+                  timerSeconds,
+                  hintsUsed: hintsUsedInLevel,
+                  levelConfig: currentLevelConfig,
+                },
+              },
+            },
+          };
+        });
+      }
+    }
+  }, [
+    currentView,
+    grid,
+    placements,
+    timerSeconds,
+    hintsUsedInLevel,
+    currentLevelConfig,
+    currentLevelId,
+    updatePlayerData,
+  ]);
+
+  // Track last used words per theme to prevent immediate repetition
+  const [lastUsedWordsByTheme, setLastUsedWordsByTheme] = useState<Record<string, string[]>>({});
+
   // Load a Standard Level
   const loadLevel = useCallback(
-    (levelId: number) => {
+    (levelId: number, forceRestart: boolean = false) => {
+      const existingProgress = playerData.levelProgress[levelId]?.inProgress;
+      if (!forceRestart && existingProgress) {
+        setCurrentLevelId(levelId);
+        setCurrentLevelConfig(existingProgress.levelConfig);
+        setGrid(existingProgress.grid);
+        setPlacements(existingProgress.placements);
+        setTimerSeconds(existingProgress.timerSeconds);
+        setHintsUsedInLevel(existingProgress.hintsUsed);
+        setHintedCell(null);
+        setIsTimerRunning(true);
+        setIsDailyChallengeActive(false);
+        setShowPauseModal(false);
+        setShowVictoryModal(false);
+        setCurrentView('playing');
+        return;
+      }
+
+      if (forceRestart && playerData.levelProgress[levelId]?.inProgress) {
+        updatePlayerData((prev) => {
+          const prevLevelProg = prev.levelProgress[levelId];
+          if (!prevLevelProg) return prev;
+          const { inProgress, ...rest } = prevLevelProg;
+          return {
+            ...prev,
+            levelProgress: {
+              ...prev.levelProgress,
+              [levelId]: rest,
+            },
+          };
+        });
+      }
+
       const config = LEVELS.find((l) => l.id === levelId) || LEVELS[0];
       const prevWords = lastUsedWordsByTheme[config.themeId] || [];
       const selectedWords = getRandomWordsForTheme(config.themeId, prevWords);
@@ -163,52 +236,119 @@ export default function App() {
       setShowVictoryModal(false);
       setCurrentView('playing');
     },
-    [lastUsedWordsByTheme]
+    [lastUsedWordsByTheme, playerData.levelProgress, updatePlayerData]
   );
 
   // Quick Random Level Generator mode
-  const loadQuickRandomLevel = useCallback(() => {
-    const availableThemes = playerData.unlockedThemes as ThemeId[];
-    const randomThemeId = availableThemes[Math.floor(Math.random() * availableThemes.length)] || 'animais';
-    const themeInfo = THEMES[randomThemeId] || THEMES.animais;
-    const prevWords = lastUsedWordsByTheme[randomThemeId] || [];
-    const selectedWords = getRandomWordsForTheme(randomThemeId, prevWords);
+  const loadQuickRandomLevel = useCallback(
+    (forceRestart: boolean = false) => {
+      const existingProgress = playerData.levelProgress[999]?.inProgress;
+      if (!forceRestart && existingProgress) {
+        setCurrentLevelId(999);
+        setCurrentLevelConfig(existingProgress.levelConfig);
+        setGrid(existingProgress.grid);
+        setPlacements(existingProgress.placements);
+        setTimerSeconds(existingProgress.timerSeconds);
+        setHintsUsedInLevel(existingProgress.hintsUsed);
+        setHintedCell(null);
+        setIsTimerRunning(true);
+        setIsDailyChallengeActive(false);
+        setShowPauseModal(false);
+        setShowVictoryModal(false);
+        setCurrentView('playing');
+        return;
+      }
 
-    const randomLevelConfig: LevelConfig = {
-      id: 999,
-      themeId: randomThemeId,
-      themeName: `Jogo Rápido - ${themeInfo.name}`,
-      gridSize: 10,
-      words: selectedWords,
-      allowDiagonal: true,
-      allowBackward: true,
-      timeLimitSeconds: 150,
-    };
+      if (forceRestart && playerData.levelProgress[999]?.inProgress) {
+        updatePlayerData((prev) => {
+          const prevLevelProg = prev.levelProgress[999];
+          if (!prevLevelProg) return prev;
+          const { inProgress, ...rest } = prevLevelProg;
+          return {
+            ...prev,
+            levelProgress: {
+              ...prev.levelProgress,
+              [999]: rest,
+            },
+          };
+        });
+      }
 
-    const { grid: boardGrid, placements: wordPlacements } = generateBoard(randomLevelConfig, selectedWords);
+      const availableThemes = playerData.unlockedThemes as ThemeId[];
+      const randomThemeId = availableThemes[Math.floor(Math.random() * availableThemes.length)] || 'animais';
+      const themeInfo = THEMES[randomThemeId] || THEMES.animais;
+      const prevWords = lastUsedWordsByTheme[randomThemeId] || [];
+      const selectedWords = getRandomWordsForTheme(randomThemeId, prevWords);
 
-    setLastUsedWordsByTheme((prev) => ({
-      ...prev,
-      [randomThemeId]: selectedWords,
-    }));
+      const randomLevelConfig: LevelConfig = {
+        id: 999,
+        themeId: randomThemeId,
+        themeName: `Jogo Rápido - ${themeInfo.name}`,
+        gridSize: 10,
+        words: selectedWords,
+        allowDiagonal: true,
+        allowBackward: true,
+        timeLimitSeconds: 150,
+      };
 
-    setCurrentLevelId(999);
-    setCurrentLevelConfig(randomLevelConfig);
-    setGrid(boardGrid);
-    setPlacements(wordPlacements);
-    setHintedCell(null);
-    setTimerSeconds(0);
-    setIsTimerRunning(true);
-    setHintsUsedInLevel(0);
-    setIsDailyChallengeActive(false);
-    setShowPauseModal(false);
-    setShowVictoryModal(false);
-    setCurrentView('playing');
-  }, [lastUsedWordsByTheme, playerData.unlockedThemes]);
+      const { grid: boardGrid, placements: wordPlacements } = generateBoard(randomLevelConfig, selectedWords);
+
+      setLastUsedWordsByTheme((prev) => ({
+        ...prev,
+        [randomThemeId]: selectedWords,
+      }));
+
+      setCurrentLevelId(999);
+      setCurrentLevelConfig(randomLevelConfig);
+      setGrid(boardGrid);
+      setPlacements(wordPlacements);
+      setHintedCell(null);
+      setTimerSeconds(0);
+      setIsTimerRunning(true);
+      setHintsUsedInLevel(0);
+      setIsDailyChallengeActive(false);
+      setShowPauseModal(false);
+      setShowVictoryModal(false);
+      setCurrentView('playing');
+    },
+    [lastUsedWordsByTheme, playerData.unlockedThemes, playerData.levelProgress, updatePlayerData]
+  );
 
   // Load Specific Unlocked Theme Game
   const loadThemeGame = useCallback(
-    (themeId: ThemeId) => {
+    (themeId: ThemeId, forceRestart: boolean = false) => {
+      const existingProgress = playerData.levelProgress[777]?.inProgress;
+      if (!forceRestart && existingProgress && existingProgress.levelConfig.themeId === themeId) {
+        setCurrentLevelId(777);
+        setCurrentLevelConfig(existingProgress.levelConfig);
+        setGrid(existingProgress.grid);
+        setPlacements(existingProgress.placements);
+        setTimerSeconds(existingProgress.timerSeconds);
+        setHintsUsedInLevel(existingProgress.hintsUsed);
+        setHintedCell(null);
+        setIsTimerRunning(true);
+        setIsDailyChallengeActive(false);
+        setShowPauseModal(false);
+        setShowVictoryModal(false);
+        setCurrentView('playing');
+        return;
+      }
+
+      if (forceRestart && playerData.levelProgress[777]?.inProgress) {
+        updatePlayerData((prev) => {
+          const prevLevelProg = prev.levelProgress[777];
+          if (!prevLevelProg) return prev;
+          const { inProgress, ...rest } = prevLevelProg;
+          return {
+            ...prev,
+            levelProgress: {
+              ...prev.levelProgress,
+              [777]: rest,
+            },
+          };
+        });
+      }
+
       const themeInfo = THEMES[themeId] || THEMES.animais;
       const prevWords = lastUsedWordsByTheme[themeId] || [];
       const selectedWords = getRandomWordsForTheme(themeId, prevWords);
@@ -244,53 +384,89 @@ export default function App() {
       setShowVictoryModal(false);
       setCurrentView('playing');
     },
-    [lastUsedWordsByTheme]
+    [lastUsedWordsByTheme, playerData.levelProgress, updatePlayerData]
   );
 
   // Load Daily Challenge
-  const loadDailyChallenge = useCallback(() => {
-    const dailyThemeId = getDailyThemeId();
-    const themeInfo = THEMES[dailyThemeId] || THEMES.animais;
-    const prevWords = lastUsedWordsByTheme[dailyThemeId] || [];
-    const selectedWords = getRandomWordsForTheme(dailyThemeId, prevWords);
+  const loadDailyChallenge = useCallback(
+    (forceRestart: boolean = false) => {
+      const existingProgress = playerData.levelProgress[888]?.inProgress;
+      if (!forceRestart && existingProgress) {
+        setCurrentLevelId(888);
+        setCurrentLevelConfig(existingProgress.levelConfig);
+        setGrid(existingProgress.grid);
+        setPlacements(existingProgress.placements);
+        setTimerSeconds(existingProgress.timerSeconds);
+        setHintsUsedInLevel(existingProgress.hintsUsed);
+        setHintedCell(null);
+        setIsTimerRunning(true);
+        setIsDailyChallengeActive(true);
+        setShowPauseModal(false);
+        setShowDailyChallengeModal(false);
+        setShowVictoryModal(false);
+        setCurrentView('playing');
+        return;
+      }
 
-    const streakDay = calculateNextStreak(
-      playerData.dailyStreak.lastCompletedDate,
-      playerData.dailyStreak.currentStreak
-    );
+      if (forceRestart && playerData.levelProgress[888]?.inProgress) {
+        updatePlayerData((prev) => {
+          const prevLevelProg = prev.levelProgress[888];
+          if (!prevLevelProg) return prev;
+          const { inProgress, ...rest } = prevLevelProg;
+          return {
+            ...prev,
+            levelProgress: {
+              ...prev.levelProgress,
+              [888]: rest,
+            },
+          };
+        });
+      }
 
-    const dailyConfig: LevelConfig = {
-      id: 888,
-      themeId: dailyThemeId,
-      themeName: `Desafio Diário (Dia ${streakDay}) - ${themeInfo.name}`,
-      gridSize: 10,
-      words: selectedWords,
-      allowDiagonal: true,
-      allowBackward: true,
-      timeLimitSeconds: 150,
-    };
+      const dailyThemeId = getDailyThemeId();
+      const themeInfo = THEMES[dailyThemeId] || THEMES.animais;
+      const prevWords = lastUsedWordsByTheme[dailyThemeId] || [];
+      const selectedWords = getRandomWordsForTheme(dailyThemeId, prevWords);
 
-    const { grid: boardGrid, placements: wordPlacements } = generateBoard(dailyConfig, selectedWords);
+      const streakDay = calculateNextStreak(
+        playerData.dailyStreak.lastCompletedDate,
+        playerData.dailyStreak.currentStreak
+      );
 
-    setLastUsedWordsByTheme((prev) => ({
-      ...prev,
-      [dailyThemeId]: selectedWords,
-    }));
+      const dailyConfig: LevelConfig = {
+        id: 888,
+        themeId: dailyThemeId,
+        themeName: `Desafio Diário (Dia ${streakDay}) - ${themeInfo.name}`,
+        gridSize: 10,
+        words: selectedWords,
+        allowDiagonal: true,
+        allowBackward: true,
+        timeLimitSeconds: 150,
+      };
 
-    setCurrentLevelId(888);
-    setCurrentLevelConfig(dailyConfig);
-    setGrid(boardGrid);
-    setPlacements(wordPlacements);
-    setHintedCell(null);
-    setTimerSeconds(0);
-    setIsTimerRunning(true);
-    setHintsUsedInLevel(0);
-    setIsDailyChallengeActive(true);
-    setShowPauseModal(false);
-    setShowDailyChallengeModal(false);
-    setShowVictoryModal(false);
-    setCurrentView('playing');
-  }, [lastUsedWordsByTheme, playerData.dailyStreak]);
+      const { grid: boardGrid, placements: wordPlacements } = generateBoard(dailyConfig, selectedWords);
+
+      setLastUsedWordsByTheme((prev) => ({
+        ...prev,
+        [dailyThemeId]: selectedWords,
+      }));
+
+      setCurrentLevelId(888);
+      setCurrentLevelConfig(dailyConfig);
+      setGrid(boardGrid);
+      setPlacements(wordPlacements);
+      setHintedCell(null);
+      setTimerSeconds(0);
+      setIsTimerRunning(true);
+      setHintsUsedInLevel(0);
+      setIsDailyChallengeActive(true);
+      setShowPauseModal(false);
+      setShowDailyChallengeModal(false);
+      setShowVictoryModal(false);
+      setCurrentView('playing');
+    },
+    [lastUsedWordsByTheme, playerData.dailyStreak, playerData.levelProgress, updatePlayerData]
+  );
 
   // Shop Actions
   const handleUnlockThemeWithCoins = (themeId: string, coinPrice: number) => {
@@ -368,6 +544,7 @@ export default function App() {
                 completed: true,
                 stars: bestStars,
                 bestTimeSeconds: bestTime,
+                inProgress: undefined,
               },
             },
           };
@@ -404,16 +581,31 @@ export default function App() {
     const todayStr = getTodayDateString();
     const rewardInfo = DAILY_REWARDS.find((r) => r.day === pendingStreakDay) || DAILY_REWARDS[0];
 
-    updatePlayerData((prev) => ({
-      ...prev,
-      coins: prev.coins + rewardInfo.coins,
-      hintsCount: prev.hintsCount + (rewardInfo.hintsBonus || 0),
-      dailyStreak: {
-        lastCompletedDate: todayStr,
-        currentStreak: pendingStreakDay,
-        claimHistory: [...prev.dailyStreak.claimHistory, todayStr],
-      },
-    }));
+    updatePlayerData((prev) => {
+      const prevLevelProg = prev.levelProgress[888];
+      return {
+        ...prev,
+        coins: prev.coins + rewardInfo.coins,
+        hintsCount: prev.hintsCount + (rewardInfo.hintsBonus || 0),
+        dailyStreak: {
+          lastCompletedDate: todayStr,
+          currentStreak: pendingStreakDay,
+          claimHistory: [...prev.dailyStreak.claimHistory, todayStr],
+        },
+        levelProgress: {
+          ...prev.levelProgress,
+          [888]: {
+            levelId: 888,
+            completed: true,
+            stars: 3,
+            bestTimeSeconds: prevLevelProg?.bestTimeSeconds
+              ? Math.min(prevLevelProg.bestTimeSeconds, timerSeconds)
+              : timerSeconds,
+            inProgress: undefined,
+          },
+        },
+      };
+    });
 
     setShowDailyRewardClaimModal(false);
     setIsDailyChallengeActive(false);
@@ -659,11 +851,13 @@ export default function App() {
           onRestart={() => {
             setShowPauseModal(false);
             if (currentLevelId === 888) {
-              loadDailyChallenge();
+              loadDailyChallenge(true);
             } else if (currentLevelId === 999) {
-              loadQuickRandomLevel();
+              loadQuickRandomLevel(true);
+            } else if (currentLevelId === 777) {
+              loadThemeGame(currentLevelConfig.themeId, true);
             } else {
-              loadLevel(currentLevelId);
+              loadLevel(currentLevelId, true);
             }
           }}
           onOpenSettings={() => {
@@ -687,7 +881,7 @@ export default function App() {
           timeTakenSeconds={victoryStats.timeTaken}
           isDoubledCoins={victoryStats.isDoubled}
           onNextLevel={() => loadLevel(currentLevelId + 1 > LEVELS.length ? 1 : currentLevelId + 1)}
-          onReplayLevel={() => loadLevel(currentLevelId)}
+          onReplayLevel={() => loadLevel(currentLevelId, true)}
           onDoubleCoins={handleDoubleCoins}
           onSelectLevel={() => {
             setShowVictoryModal(false);

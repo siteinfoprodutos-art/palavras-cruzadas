@@ -70,11 +70,20 @@ export interface SelectionCell {
   col: number;
 }
 
+export interface SavedInProgress {
+  grid: BoardCell[][];
+  placements: WordPlacement[];
+  timerSeconds: number;
+  hintsUsed: number;
+  levelConfig: LevelConfig;
+}
+
 export interface LevelProgress {
   levelId: number;
   completed: boolean;
   stars: number; // 1 to 3
   bestTimeSeconds?: number;
+  inProgress?: SavedInProgress;
 }
 
 export interface DailyStreakData {

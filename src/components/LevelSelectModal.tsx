@@ -114,12 +114,16 @@ export const LevelSelectModal: React.FC<LevelSelectModalProps> = ({
                   <span className="text-base">{theme.icon}</span>
                 </div>
 
-                {/* Center Content: Lock or Grid Size indicator */}
+                {/* Center Content: Lock, In-Progress badge, or Grid Size indicator */}
                 <div className="my-1 flex items-center justify-center">
                   {!isUnlocked ? (
                     <div className="flex h-8 w-8 items-center justify-center rounded-full bg-slate-800 text-slate-500">
                       <Lock className="h-4 w-4" />
                     </div>
+                  ) : progress?.inProgress && !progress?.completed ? (
+                    <span className="text-[9px] font-extrabold text-amber-300 bg-amber-500/20 px-2 py-0.5 rounded-full border border-amber-400/40 animate-pulse">
+                      Em jogo
+                    </span>
                   ) : (
                     <span className="text-[10px] font-bold text-indigo-300 bg-indigo-500/10 px-2 py-0.5 rounded-full border border-indigo-500/20">
                       {level.gridSize}x{level.gridSize}
