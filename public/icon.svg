@@ -1,0 +1,46 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512" width="100%" height="100%">
+  <defs>
+    <linearGradient id="bgGrad" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#312e81" />
+      <stop offset="50%" stop-color="#1e1b4b" />
+      <stop offset="100%" stop-color="#0f172a" />
+    </linearGradient>
+    <linearGradient id="pillGrad" x1="0%" y1="0%" x2="100%" y2="0%">
+      <stop offset="0%" stop-color="#f59e0b" />
+      <stop offset="100%" stop-color="#ec4899" />
+    </linearGradient>
+    <linearGradient id="tileGrad" x1="0%" y1="0%" x2="0%" y2="100%">
+      <stop offset="0%" stop-color="#6366f1" />
+      <stop offset="100%" stop-color="#4f46e5" />
+    </linearGradient>
+  </defs>
+
+  <!-- Background Card -->
+  <rect width="512" height="512" rx="110" fill="url(#bgGrad)" />
+
+  <!-- Outer Glow Ring -->
+  <rect x="16" y="16" width="480" height="480" rx="94" fill="none" stroke="#6366f1" stroke-opacity="0.3" stroke-width="8" />
+
+  <!-- Highlight Pill Track across 3 cells -->
+  <rect x="96" y="216" width="320" height="80" rx="40" fill="url(#pillGrad)" opacity="0.9" />
+
+  <!-- Grid Cells 3x3 -->
+  <!-- Row 1 -->
+  <rect x="106" y="106" width="85" height="85" rx="22" fill="url(#tileGrad)" />
+  <rect x="213" y="106" width="85" height="85" rx="22" fill="url(#tileGrad)" />
+  <rect x="320" y="106" width="85" height="85" rx="22" fill="url(#tileGrad)" />
+
+  <!-- Row 2 (Highlighted) -->
+  <text x="148" y="272" font-family="sans-serif" font-weight="900" font-size="52" fill="#ffffff" text-anchor="middle">C</text>
+  <text x="256" y="272" font-family="sans-serif" font-weight="900" font-size="52" fill="#ffffff" text-anchor="middle">A</text>
+  <text x="363" y="272" font-family="sans-serif" font-weight="900" font-size="52" fill="#ffffff" text-anchor="middle">Ç</text>
+
+  <!-- Row 3 -->
+  <rect x="106" y="320" width="85" height="85" rx="22" fill="url(#tileGrad)" />
+  <rect x="213" y="320" width="85" height="85" rx="22" fill="url(#tileGrad)" />
+  <rect x="320" y="320" width="85" height="85" rx="22" fill="url(#tileGrad)" />
+
+  <!-- Brazilian Flag Accent Sparkle -->
+  <circle cx="410" cy="100" r="18" fill="#10b981" />
+  <circle cx="410" cy="100" r="10" fill="#f59e0b" />
+</svg>

@@ -1,0 +1,6 @@
+{
+  "name": "Caça-Palavras Brasil - Mobile",
+  "description": "Jogo de caça-palavras mobile em português com fases temáticas, visual colorido, efeitos sonoros e dicas.",
+  "requestFramePermissions": [],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}
